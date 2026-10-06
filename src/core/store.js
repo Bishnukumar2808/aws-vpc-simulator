@@ -9,6 +9,9 @@ class Store {
   constructor() {
     this.listeners = [];
     this.state = this.loadState();
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', this.state.theme || 'light');
+    }
     this.recalculatePublicIps();
   }
 

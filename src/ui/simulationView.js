@@ -24,15 +24,26 @@ export function renderSimulationView() {
   const state = store.getState();
   const instances = state.instances || [];
 
-  if (!selectedSourceId && instances.length > 0) {
-    selectedSourceId = instances[0].id;
-  }
-  if (!selectedDestId && instances.length > 1) {
-    selectedDestId = instances[1].id;
+  // Validate Source Instance Selection
+  const validSource = instances.find(i => i.id === selectedSourceId);
+  if (!validSource) {
+    selectedSourceId = instances.length > 0 ? instances[0].id : null;
   }
 
-  const instSourceOptions = instances.map(i => `<option value="${i.id}" ${i.id === selectedSourceId ? 'selected' : ''}>${i.name} (${i.privateIp})</option>`).join('');
-  const instDestOptions = instances.map(i => `<option value="${i.id}" ${i.id === selectedDestId ? 'selected' : ''}>${i.name} (${i.privateIp})</option>`).join('');
+  // Validate Destination Instance Selection (ensure distinct destination if > 1 instances exist)
+  const validDest = instances.find(i => i.id === selectedDestId);
+  if (!validDest || (selectedDestId === selectedSourceId && instances.length > 1)) {
+    const alternativeDest = instances.find(i => i.id !== selectedSourceId);
+    selectedDestId = alternativeDest ? alternativeDest.id : (instances.length > 0 ? instances[0].id : null);
+  }
+
+  const instSourceOptions = instances.length > 0 
+    ? instances.map(i => `<option value="${i.id}" ${i.id === selectedSourceId ? 'selected' : ''}>${i.name} (${i.privateIp})</option>`).join('')
+    : `<option value="">No instances available</option>`;
+
+  const instDestOptions = instances.length > 0 
+    ? instances.map(i => `<option value="${i.id}" ${i.id === selectedDestId ? 'selected' : ''}>${i.name} (${i.privateIp})</option>`).join('')
+    : `<option value="">No instances available</option>`;
 
   return `
     <div class="view-page">
@@ -156,7 +167,7 @@ export function renderSimulationView() {
 }
 
 /**
- * Draws crisp SVG vector stage layout with nodes and persistent glowing path lines.
+ * Draws SVG vector stage layout with nodes and persistent glowing path lines.
  */
 function drawStageSvg() {
   const container = document.getElementById('sim-svg-container');
@@ -179,25 +190,14 @@ function drawStageSvg() {
         <filter id="packet-glow" x="-30%" y="-30%" width="160%" height="160%">
           <feDropShadow dx="0" dy="0" stdDeviation="6" flood-color="var(--primary)"/>
         </filter>
-        <filter id="pass-halo" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="var(--success)"/>
-        </filter>
-        <filter id="fail-halo" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="var(--danger)"/>
-        </filter>
       </defs>
 
       <!-- Persistent Connector Path Lines -->
       <g stroke="var(--border-strong)" stroke-width="2" stroke-dasharray="6,4" opacity="0.6">
-        <!-- Subnet 1 Router to Subnet 2 Router -->
         <line x1="220" y1="195" x2="620" y2="195"/>
-        <!-- Subnet 1 Router to IGW -->
         <line x1="220" y1="195" x2="420" y2="75"/>
-        <!-- Subnet 2 Router to IGW -->
         <line x1="620" y1="195" x2="420" y2="75"/>
-        <!-- Subnet 1 EC2 to Router 1 -->
         <line x1="220" y1="317" x2="220" y2="195"/>
-        <!-- Subnet 2 EC2 to Router 2 -->
         <line x1="620" y1="317" x2="620" y2="195"/>
       </g>
 
@@ -230,6 +230,21 @@ function drawStageSvg() {
     <rect x="35" y="93" width="180" height="24" rx="6" fill="var(--primary)"/>
     <text x="125" y="109" font-size="11" font-weight="800" fill="var(--primary-text)" text-anchor="middle">VPC: ${state.vpc.name} (${state.vpc.cidr})</text>
   `;
+
+  // Check for Empty Architecture State (After Reset All)
+  if (subnets.length === 0 || instances.length === 0) {
+    svg += `
+      <g transform="translate(420, 250)">
+        <rect x="-250" y="-45" width="500" height="90" rx="10" fill="var(--surface-2)" stroke="var(--border)" stroke-width="1.5"/>
+        <text x="0" y="-12" font-size="13" font-weight="700" fill="var(--text)" text-anchor="middle">⚠️ Architecture Reset / Empty</text>
+        <text x="0" y="10" font-size="11" font-weight="500" fill="var(--muted)" text-anchor="middle">Click "Load Sample" in the topbar to load a complete demo architecture,</text>
+        <text x="0" y="28" font-size="11" font-weight="500" fill="var(--muted)" text-anchor="middle">or navigate to VPC & Subnets page to build your network manually.</text>
+      </g>
+      </svg>
+    `;
+    container.innerHTML = svg;
+    return;
+  }
 
   // Draw Subnets Side-by-Side
   const subW = 370;
@@ -330,6 +345,18 @@ function drawStageSvg() {
  */
 function startPacketSimulation() {
   const state = store.getState();
+  const instances = state.instances || [];
+
+  if (instances.length === 0) {
+    showToast('No EC2 instances available. Click "Load Sample" in the topbar to load demo architecture.', 'danger');
+    return;
+  }
+
+  if (selectedMode === 'instance_to_instance' && selectedSourceId === selectedDestId) {
+    showToast('Please select two different EC2 instances for source and destination.', 'danger');
+    return;
+  }
+
   const input = {
     mode: selectedMode,
     sourceInstanceId: selectedSourceId,
@@ -461,6 +488,17 @@ export function attachSimulationEvents() {
   if (srcSelect) {
     srcSelect.addEventListener('change', (e) => {
       selectedSourceId = e.target.value;
+      // Auto-update dest dropdown if it matches selectedSourceId
+      const state = store.getState();
+      const instances = state.instances || [];
+      if (selectedDestId === selectedSourceId && instances.length > 1) {
+        const alt = instances.find(i => i.id !== selectedSourceId);
+        if (alt) {
+          selectedDestId = alt.id;
+          const dstSel = document.getElementById('sim-dest-select');
+          if (dstSel) dstSel.value = alt.id;
+        }
+      }
     });
   }
 

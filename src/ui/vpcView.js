@@ -1,5 +1,5 @@
 import { store } from '../core/store.js';
-import { parseCidr, nextFreeIp, ipToInt } from '../core/cidr.js';
+import { parseCidr, nextFreeIp, ipToInt, cidrContains } from '../core/cidr.js';
 import { validateVpcCidr, validateSubnetCidr, canDeleteSubnet } from '../core/validators.js';
 import { showToast } from './toast.js';
 
@@ -227,6 +227,13 @@ export function attachVpcEvents() {
       const validation = validateVpcCidr(cidr);
       if (!validation.valid) {
         errorDiv.textContent = validation.error;
+        return;
+      }
+
+      const newVpc = validation.parsed;
+      const outsider = store.getState().subnets.find(sub => !cidrContains(newVpc, parseCidr(sub.cidr, false)));
+      if (outsider) {
+        errorDiv.textContent = `Subnet "${outsider.name}" (${outsider.cidr}) would fall outside the new VPC CIDR. Delete or change it first.`;
         return;
       }
 

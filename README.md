@@ -23,7 +23,7 @@ A feature-complete, interactive web application simulating the three core pillar
 - **Stateful Firewall Behavior:** Fixed read-only outbound rules demonstrating that reply traffic is automatically permitted.
 - **Delete Protection:** Prevents deleting security groups attached to instances or referenced by other rules.
 
-### 4. ⭐ Enhancement: Animated Hop-by-Hop Packet Flow Simulator
+### 4. Enhancement: Animated Hop-by-Hop Packet Flow Simulator
 - **Explainer-Video Stage:** Full SVG canvas depicting VPC containers, public/private subnets, IGW, route table routers, SG shields, and EC2 servers.
 - **Real-Time Connectivity Engine:** Powered by `traceConnectivity()` evaluating packet paths across instance-to-instance and instance-to-internet flows.
 - **Hop-by-Hop Animation:** Animated glowing packet dot traveling along real network nodes with PASS/FAIL checkpoint reactions and plain-English narration captions.

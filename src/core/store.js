@@ -1,4 +1,4 @@
-import { createSampleState } from './sample.js';
+import { createSampleState, create3TierSampleState } from './sample.js';
 import { generateId } from './ids.js';
 import { parseCidr, nextFreeIp, ipToInt } from './cidr.js';
 
@@ -67,8 +67,13 @@ class Store {
   }
 
   // --- Reset & Load Sample ---
-  loadSample() {
-    this.state = createSampleState();
+  loadSample(presetType = 'default') {
+    if (presetType === '3tier') {
+      this.state = create3TierSampleState();
+    } else {
+      this.state = createSampleState();
+    }
+    this.recalculatePublicIps();
     this.saveState();
   }
 

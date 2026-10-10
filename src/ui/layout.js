@@ -72,7 +72,7 @@ export function renderLayout(activeHash = '#overview') {
           <li class="sidebar-item ${activeHash === '#simulation' ? 'active' : ''}">
             <a href="#simulation">
               <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              <span class="sidebar-label">Packet Simulation ⭐</span>
+              <span class="sidebar-label">Packet Simulation</span>
             </a>
           </li>
           <li class="sidebar-item ${activeHash === '#vpc' ? 'active' : ''}">
@@ -119,8 +119,46 @@ export function renderLayout(activeHash = '#overview') {
   });
 
   document.getElementById('btn-load-sample').addEventListener('click', () => {
-    store.loadSample();
-    showToast('Loaded sample VPC architecture.', 'success');
+    const modalDiv = document.createElement('div');
+    modalDiv.className = 'modal-backdrop';
+    modalDiv.innerHTML = `
+      <div class="modal" style="max-width: 520px;">
+        <div class="modal-header">Select Architecture Sample Preset</div>
+        <div class="modal-body">
+          <p style="margin-bottom: 16px; font-size: 14px; color: var(--muted);">Choose an AWS architecture topology preset to load into the workspace:</p>
+          
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div id="preset-default" style="padding: 14px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: var(--card-bg); transition: all 0.2s;" class="preset-card">
+              <div style="font-weight: 700; font-size: 14px; color: var(--text);">🌐 Standard 2-Tier Web Architecture</div>
+              <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">VPC (10.0.0.0/16) • Public Subnet (Web Server) • Private Subnet (DB Server)</div>
+            </div>
+
+            <div id="preset-3tier" style="padding: 14px; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; background: var(--card-bg); transition: all 0.2s;" class="preset-card">
+              <div style="font-weight: 700; font-size: 14px; color: var(--text);">🏢 Enterprise 3-Tier Architecture</div>
+              <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">VPC (172.16.0.0/16) • Public Web Frontend • Private API Backend • Private PostgreSQL DB</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-actions" style="margin-top: 20px;">
+          <button class="btn btn-secondary btn-cancel">Cancel</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modalDiv);
+
+    modalDiv.querySelector('.btn-cancel').addEventListener('click', () => modalDiv.remove());
+
+    modalDiv.querySelector('#preset-default').addEventListener('click', () => {
+      store.loadSample('default');
+      showToast('Loaded Standard 2-Tier Architecture.', 'success');
+      modalDiv.remove();
+    });
+
+    modalDiv.querySelector('#preset-3tier').addEventListener('click', () => {
+      store.loadSample('3tier');
+      showToast('Loaded Enterprise 3-Tier Architecture.', 'success');
+      modalDiv.remove();
+    });
   });
 
   document.getElementById('btn-reset-all').addEventListener('click', () => {

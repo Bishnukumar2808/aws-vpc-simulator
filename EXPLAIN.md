@@ -22,7 +22,7 @@
 - **Real File:** [`src/core/connectivity.js`](file:///c:/Users/bishn/Desktop/Cloud/src/core/connectivity.js#L95) & [`src/ui/sgView.js`](file:///c:/Users/bishn/Desktop/Cloud/src/ui/sgView.js)
 - **AWS Rule Simulation:** Security Groups are **stateful**. If inbound traffic is allowed, the response (reply) traffic is automatically allowed outbound, regardless of outbound rules.
 
-### ⭐ Enhancement: Animated Hop-by-Hop Packet Tracer
+### Enhancement: Animated Hop-by-Hop Packet Tracer
 - **What it does:** Animates a packet travelling from a source EC2 through SG shields, subnet routers, and the IGW to a destination EC2 or the Internet.
 - **Real File:** [`src/core/connectivity.js`](file:///c:/Users/bishn/Desktop/Cloud/src/core/connectivity.js) (`traceConnectivity()`) & [`src/ui/simulationView.js`](file:///c:/Users/bishn/Desktop/Cloud/src/ui/simulationView.js)
 - **Key Capability:** Driven by `traceConnectivity()`. If a packet is BLOCKED (e.g. missing 3306 rule), clicking **Fix It Live** mutates the store state and replays the packet to show success.

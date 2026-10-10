@@ -1,6 +1,33 @@
 import { parseCidr, ipInCidr } from './cidr.js';
 
 /**
+ * Finds the first inbound rule that permits the given traffic.
+ * `matchSource(rule)` decides whether the rule's source covers the sender.
+ */
+function findMatchingInboundRule(sg, protocol, port, matchSource) {
+  const proto = (protocol || 'TCP').toUpperCase();
+  const numPort = parseInt(port, 10);
+
+  for (const rule of sg.inboundRules) {
+    if (rule.protocol !== 'ALL' && rule.protocol.toUpperCase() !== proto) continue;
+
+    const anyPort = rule.portRange === 'ALL' || rule.protocol === 'ALL' || proto === 'ICMP';
+    if (!anyPort) {
+      const range = String(rule.portRange);
+      if (range.includes('-')) {
+        const [pMin, pMax] = range.split('-').map(p => parseInt(p, 10));
+        if (!(numPort >= pMin && numPort <= pMax)) continue;
+      } else if (parseInt(range, 10) !== numPort) {
+        continue;
+      }
+    }
+
+    if (matchSource(rule)) return rule;
+  }
+  return null;
+}
+
+/**
  * AWS VPC Connectivity Tracer Engine.
  * Pure logic module evaluating network packet flow hop-by-hop.
  * Supported modes:
@@ -132,49 +159,12 @@ export function traceConnectivity(state, input) {
       return { allowed, steps, fixHint };
     }
 
-    let inboundMatch = false;
-    let matchedRule = null;
-
-    for (const rule of dstSg.inboundRules) {
-      // Protocol matching
-      const protoOk = rule.protocol === 'ALL' || rule.protocol.toUpperCase() === (protocol || 'TCP').toUpperCase();
-      if (!protoOk) continue;
-
-      // Port matching
-      let portOk = false;
-      if (rule.portRange === 'ALL' || rule.protocol === 'ALL' || (protocol || '').toUpperCase() === 'ICMP') {
-        portOk = true;
-      } else if (rule.portRange.includes('-')) {
-        const [pMin, pMax] = rule.portRange.split('-').map(p => parseInt(p, 10));
-        const numPort = parseInt(port, 10);
-        if (numPort >= pMin && numPort <= pMax) portOk = true;
-      } else {
-        if (parseInt(rule.portRange, 10) === parseInt(port, 10)) portOk = true;
-      }
-
-      if (!portOk) continue;
-
-      // Source matching (either CIDR block or Security Group ID reference)
-      let sourceOk = false;
-      if (rule.source.startsWith('sg-')) {
-        // SG reference match: does source instance belong to allowed SG?
-        if (srcInst.securityGroupId === rule.source) {
-          sourceOk = true;
-        }
-      } else {
-        // CIDR match: is source instance's private IP inside allowed CIDR?
-        const parsedSourceCidr = parseCidr(rule.source, false);
-        if (parsedSourceCidr.valid && ipInCidr(srcInst.privateIp, parsedSourceCidr)) {
-          sourceOk = true;
-        }
-      }
-
-      if (sourceOk) {
-        inboundMatch = true;
-        matchedRule = rule;
-        break;
-      }
-    }
+    const matchedRule = findMatchingInboundRule(dstSg, protocol, port, rule => {
+      if (rule.source.startsWith('sg-')) return srcInst.securityGroupId === rule.source;
+      const parsedSourceCidr = parseCidr(rule.source, false);
+      return parsedSourceCidr.valid && ipInCidr(srcInst.privateIp, parsedSourceCidr);
+    });
+    const inboundMatch = !!matchedRule;
 
     if (!inboundMatch) {
       addStep('dest_sg', 'Destination Security Group', `Inbound ${protocol || 'TCP'}:${port || '80'} check`, 'FAIL', `Destination Security Group "${dstSg.name}" blocks traffic. No rule permits ${protocol || 'TCP'}:${port || '80'} from ${srcInst.name} (${srcInst.privateIp}).`, `node-sg-${dstSg.id}`, {
@@ -257,19 +247,7 @@ export function traceConnectivity(state, input) {
 
     // Step 4: Destination SG Inbound Rule Check
     const dstSg = state.securityGroups.find(s => s.id === dstInst.securityGroupId);
-    let inboundMatch = false;
-
-    if (dstSg) {
-      for (const rule of dstSg.inboundRules) {
-        const protoOk = rule.protocol === 'ALL' || rule.protocol.toUpperCase() === (protocol || 'TCP').toUpperCase();
-        let portOk = rule.portRange === 'ALL' || rule.protocol === 'ALL' || parseInt(rule.portRange, 10) === parseInt(port, 10);
-        let srcOk = rule.source === '0.0.0.0/0';
-        if (protoOk && portOk && srcOk) {
-          inboundMatch = true;
-          break;
-        }
-      }
-    }
+    const inboundMatch = !!(dstSg && findMatchingInboundRule(dstSg, protocol, port, rule => rule.source === '0.0.0.0/0'));
 
     if (!inboundMatch) {
       addStep('dest_sg', 'Destination Security Group', 'Inbound firewall rule', 'FAIL', `Security group "${dstSg ? dstSg.name : 'Default'}" blocks inbound ${protocol || 'TCP'}:${port || '80'} from 0.0.0.0/0.`, `node-sg-${dstSg ? dstSg.id : 'default'}`, {

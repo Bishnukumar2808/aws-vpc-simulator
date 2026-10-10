@@ -737,6 +737,13 @@ a:hover {
   gap: 10px;
 }
 
+.preset-card:hover {
+  border-color: var(--primary) !important;
+  background-color: var(--primary-light) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
 /* ==========================================================================
    ANIMATED PACKET SIMULATION STAGE (High-Visibility Vector Canvas)
    ========================================================================== */

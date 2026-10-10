@@ -44,11 +44,11 @@ export function renderOverviewView() {
       <!-- Guided Demo Callout Banner -->
       <div class="guided-demo-banner">
         <div>
-          <h3 style="font-weight: 700; color: var(--text); font-size: 15px; margin-bottom: 2px;">⚡ Interactive Guided Presentation Demo</h3>
-          <p style="font-size: 13px; color: var(--muted);">Click to launch an automated multi-step walk-through demonstrating public vs. private networking and stateful security group blocking.</p>
+          <h3 style="font-weight: 700; color: var(--text); font-size: 15px; margin-bottom: 2px;">Guided walkthrough</h3>
+          <p style="font-size: 13px; color: var(--muted);">Steps through public vs. private subnets and security group blocking.</p>
         </div>
-        <button id="btn-run-guided-demo" class="btn btn-primary" style="background-color: #172033; color: #FFFFFF; border: 1px solid var(--primary);">
-          Launch Guided Demo
+        <button id="btn-run-guided-demo" class="btn btn-secondary">
+          Start walkthrough
         </button>
       </div>
 

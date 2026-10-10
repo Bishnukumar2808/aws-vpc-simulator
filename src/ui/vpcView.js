@@ -4,7 +4,7 @@ import { validateVpcCidr, validateSubnetCidr, canDeleteSubnet } from '../core/va
 import { showToast } from './toast.js';
 
 /**
- * VPC and Subnets Management Page Component (Feature 1).
+ * VPC and Subnets Management Page Component.
  */
 
 export function renderVpcView() {

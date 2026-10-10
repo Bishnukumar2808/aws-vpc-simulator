@@ -51,7 +51,10 @@ function handleRoute() {
 
 // Subscribe to store updates so view automatically re-renders on state mutation
 store.subscribe(() => {
+  // Keep the scroll position when a state change re-renders the current page.
+  const y = window.scrollY;
   handleRoute();
+  window.scrollTo(0, y);
 });
 
 // Attach hashchange router listener

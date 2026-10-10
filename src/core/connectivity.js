@@ -38,6 +38,8 @@ function findMatchingInboundRule(sg, protocol, port, matchSource) {
 export function traceConnectivity(state, input) {
   const { mode, sourceInstanceId, destInstanceId, destIp, protocol, port } = input;
   const steps = [];
+  // Readable service name for messages: "ICMP" or "TCP:443"
+  const svc = (protocol || 'TCP').toUpperCase() === 'ICMP' ? 'ICMP' : `${protocol || 'TCP'}:${port || '80'}`;
   let allowed = true;
   let fixHint = null;
 
@@ -167,21 +169,21 @@ export function traceConnectivity(state, input) {
     const inboundMatch = !!matchedRule;
 
     if (!inboundMatch) {
-      addStep('dest_sg', 'Destination Security Group', `Inbound ${protocol || 'TCP'}:${port || '80'} check`, 'FAIL', `Destination Security Group "${dstSg.name}" blocks traffic. No rule permits ${protocol || 'TCP'}:${port || '80'} from ${srcInst.name} (${srcInst.privateIp}).`, `node-sg-${dstSg.id}`, {
+      addStep('dest_sg', 'Destination Security Group', `Inbound ${svc} check`, 'FAIL', `Destination Security Group "${dstSg.name}" blocks traffic. No rule permits ${svc} from ${srcInst.name} (${srcInst.privateIp}).`, `node-sg-${dstSg.id}`, {
         actionType: 'add_sg_inbound_rule',
         targetId: dstSg.id,
         ruleData: {
           protocol: protocol || 'TCP',
-          portRange: String(port || '80'),
+          portRange: (protocol || 'TCP').toUpperCase() === 'ICMP' ? 'ALL' : String(port || '80'),
           source: srcInst.securityGroupId, // Best practice: SG reference
-          description: `Allow ${protocol}:${port} from ${srcInst.name}`
+          description: `Allow ${svc} from ${srcInst.name}`
         },
-        description: `Add inbound rule to SG "${dstSg.name}" allowing ${protocol}:${port} from ${srcInst.name}.`
+        description: `Add inbound rule to SG "${dstSg.name}" allowing ${svc} from ${srcInst.name}.`
       });
       return { allowed, steps, fixHint };
     } else {
       const sourceDesc = matchedRule.source.startsWith('sg-') ? `Security Group (${matchedRule.source})` : `CIDR (${matchedRule.source})`;
-      addStep('dest_sg', 'Destination Security Group', `Inbound ${protocol}:${port} check`, 'PASS', `Rule matched! Allowed ${protocol}:${port} from ${sourceDesc}.`, `node-sg-${dstSg.id}`);
+      addStep('dest_sg', 'Destination Security Group', `Inbound ${svc} check`, 'PASS', `Rule matched! Allowed ${svc} from ${sourceDesc}.`, `node-sg-${dstSg.id}`);
     }
 
     // Step 5: Destination EC2 State
@@ -250,20 +252,20 @@ export function traceConnectivity(state, input) {
     const inboundMatch = !!(dstSg && findMatchingInboundRule(dstSg, protocol, port, rule => rule.source === '0.0.0.0/0'));
 
     if (!inboundMatch) {
-      addStep('dest_sg', 'Destination Security Group', 'Inbound firewall rule', 'FAIL', `Security group "${dstSg ? dstSg.name : 'Default'}" blocks inbound ${protocol || 'TCP'}:${port || '80'} from 0.0.0.0/0.`, `node-sg-${dstSg ? dstSg.id : 'default'}`, {
+      addStep('dest_sg', 'Destination Security Group', 'Inbound firewall rule', 'FAIL', `Security group "${dstSg ? dstSg.name : 'Default'}" blocks inbound ${svc} from 0.0.0.0/0.`, `node-sg-${dstSg ? dstSg.id : 'default'}`, {
         actionType: 'add_sg_inbound_rule',
         targetId: dstSg ? dstSg.id : null,
         ruleData: {
           protocol: protocol || 'TCP',
-          portRange: String(port || '80'),
+          portRange: (protocol || 'TCP').toUpperCase() === 'ICMP' ? 'ALL' : String(port || '80'),
           source: '0.0.0.0/0',
-          description: `Allow ${protocol}:${port} from anywhere`
+          description: `Allow ${svc} from anywhere`
         },
-        description: `Add inbound rule to SG "${dstSg ? dstSg.name : 'Default'}" allowing ${protocol}:${port} from 0.0.0.0/0.`
+        description: `Add inbound rule to SG "${dstSg ? dstSg.name : 'Default'}" allowing ${svc} from 0.0.0.0/0.`
       });
       return { allowed, steps, fixHint };
     } else {
-      addStep('dest_sg', 'Destination Security Group', 'Inbound firewall rule', 'PASS', `Security group allows inbound ${protocol}:${port} from anywhere (0.0.0.0/0).`, `node-sg-${dstSg.id}`);
+      addStep('dest_sg', 'Destination Security Group', 'Inbound firewall rule', 'PASS', `Security group allows inbound ${svc} from anywhere (0.0.0.0/0).`, `node-sg-${dstSg.id}`);
     }
 
     // Step 5: Destination Instance State
